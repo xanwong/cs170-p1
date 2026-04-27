@@ -1,0 +1,31 @@
+Group Members: Karen Yuan, Xandra Wong
+
+Work distribution:
+First, we discussed how the read-write lock should work at a high level. Then, Karen implemented the
+RWLock(), startRead(), and doneRead() functions, while Xandra implemented the ~RWLock, startWrite(),
+doneWrite() functions. This distribution is fair since we both did the same amount of work, 
+implementing an equal amount of functions and understanding how everything works at the high level.
+
+Design Ideas and High-Level Summary of Code Flow:
+We decided that it was best to use a fine-grain style by using one lock
+for each hash table entry. As discussed in section, this would be more efficient
+than using a course-grain style since different threads could access different
+entries at a time, so long as they do not modify each other's entries. 
+
+Our idea is that multiple threads should be able to read concurrently since
+there will be no modifications, and thus will not result in any race-conditions.
+However, a thread requesting to read must wait for the active writing thread and all writing 
+thread waiting in queue to complete before entering the critical section to read. This ensures
+that the data read is the most updated. 
+
+If any thread is requesting to write, it will have to satisy 2 conditions:
+1. there are no threads actively reading
+2. no other thread is actively writing
+If both these conditions are satisfied, the current thread can enter the critical
+section and write. Otherwise, it will be put to sleep until these conditions are satisfied.
+
+If there are no more threads reading, we wake the next thread requesting to
+write. If there are no more threads writing, we wake all the threads requesting
+to read since reads can be done concurrently. If there are more threads waiting to write,
+we wake the next thread to write.
+
