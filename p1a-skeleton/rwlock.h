@@ -5,9 +5,10 @@
 class RWLock{
 private:
     //Your solution to add more private fields
-    int numReaders;
-    int numWritersWaiting;
-    bool writer_active;
+    int activeReaders;
+    int waitingReaders;
+    int activeWriters;
+    int waitingWriters;
 
     pthread_mutex_t mutex;
     pthread_cond_t readers_ok;

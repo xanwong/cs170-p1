@@ -24,8 +24,8 @@ If any thread is requesting to write, it will have to satisy 2 conditions:
 If both these conditions are satisfied, the current thread can enter the critical
 section and write. Otherwise, it will be put to sleep until these conditions are satisfied.
 
-If there are no more threads reading, we wake the next thread requesting to
-write. If there are no more threads writing, we wake all the threads requesting
-to read since reads can be done concurrently. If there are more threads waiting to write,
-we wake the next thread to write.
+After a reader thread completes, we wake the next thread requesting to
+write. After a writer thread completes, and if there are no other threads waiting to write,
+we wake all the threads requesting to read since reads can be done concurrently. 
+Otherwise, if there are more threads waiting to write, we wake the next thread to write.
 

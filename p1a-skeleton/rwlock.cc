@@ -11,9 +11,10 @@ RWLock::RWLock() {
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&readers_ok, NULL);
     pthread_cond_init(&writers_ok, NULL);
-    numReaders = 0;
-    numWritersWaiting = 0;
-    writer_active = false;
+    activeReaders = 0;
+    waitingReaders = 0;
+    activeWriters = 0;
+    waitingWriters = 0;
 }
 
 RWLock::~RWLock() {
@@ -24,13 +25,15 @@ RWLock::~RWLock() {
 
 void RWLock::startRead() { 
     pthread_mutex_lock(&mutex);
-
+    
     // readers only need to wait for writers to complete,
     // readers can read concurrently with other readers
-    while (writer_active || numWritersWaiting > 0) {
+    while ( (activeWriters + waitingWriters) > 0) {
+        waitingReaders++;
         pthread_cond_wait(&readers_ok, &mutex);
+        waitingReaders--;
     }
-    numReaders++;
+    activeReaders++;
 
     pthread_mutex_unlock(&mutex);
 }
@@ -38,9 +41,9 @@ void RWLock::startRead() {
 void RWLock::doneRead() {
     pthread_mutex_lock(&mutex);
 
-    numReaders--;
+    activeReaders--;
     // signal to writers that they can start writing if there are no more readers
-    if (numReaders == 0) {
+    if ( activeReaders == 0 && waitingWriters > 0) {
         pthread_cond_signal(&writers_ok);
     }
 
@@ -50,13 +53,13 @@ void RWLock::doneRead() {
 void RWLock::startWrite() { 
     pthread_mutex_lock(&mutex);
 
-    numWritersWaiting++;
     // have to wait for all readers to finish and for any active writer to finish
-    while ( numReaders > 0  || writer_active ) {
+    while ( activeReaders > 0  || activeWriters > 0 ) {
+        waitingWriters++;
         pthread_cond_wait(&writers_ok, &mutex);
+        waitingWriters--;
     }
-    numWritersWaiting--;
-    writer_active = true;
+    activeWriters++;
 
     pthread_mutex_unlock(&mutex);
 }
@@ -64,8 +67,8 @@ void RWLock::startWrite() {
 void RWLock::doneWrite() {
     pthread_mutex_lock(&mutex);
 
-    writer_active = false;
-    if (numWritersWaiting > 0) {
+    activeWriters--;
+    if (waitingWriters > 0) {
         pthread_cond_signal(&writers_ok);       // wake one writer
     } else {
         pthread_cond_broadcast(&readers_ok);    // wake all readers when no writers are waiting
