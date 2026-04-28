@@ -104,11 +104,49 @@ Semaphore::V()
 // Your solution for Task 2
 // TODO
 
-Lock::Lock(char* debugName) { }
-Lock::~Lock() { }
-void Lock::Acquire() { }
-void Lock::Release() { }
-bool Lock::isHeldByCurrentThread() { }
+Lock::Lock(char* debugName) {
+    name = debugName;
+    value = 1;      // Lock is FREE
+    owner = NULL;
+    queue = new List;
+}
+
+Lock::~Lock() { 
+    delete queue;
+}
+
+void Lock::Acquire() { 
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    ASSERT(!isHeldByCurrentThread());       // Ensure the current thread doesn't already hold the lock to prevent deadlock
+    while (value == 0) { 			// Lock is BUSY
+        queue->Append((void *)currentThread);	// so go to sleep
+        currentThread->Sleep();
+    }
+    value = 0; 					// Lock available, set it to BUSY
+    owner = currentThread;
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+void Lock::Release() { 
+    Thread *thread;
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+    value = 1; 					// Lock is now FREE
+    owner = NULL;
+
+    ASSERT(isHeldByCurrentThread());        // Only the thread that holds the lock can release it
+    thread = (Thread *)queue->Remove();
+    if (thread != NULL)	   
+        scheduler->ReadyToRun(thread);  // Run next thread waiting for this lock
+    
+    (void) interrupt->SetLevel(oldLevel);
+}
+
+bool Lock::isHeldByCurrentThread() { 
+    return owner == currentThread;
+}
 
 // Your solution for Task 3
 // TODO
