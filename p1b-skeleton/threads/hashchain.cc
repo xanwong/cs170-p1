@@ -43,15 +43,15 @@
 #define START_WRITE() sem[hash]->P()
 #define END_WRITE() sem[hash]->V()
 #elif defined P1_LOCK //using our implemented nachos lock. Your solution for Task 2
-#define START_READ() do{}while(0) //TODO
-#define END_READ() do{}while(0) //TODO
-#define START_WRITE() do{}while(0) //TODO
-#define END_WRITE() do{}while(0) //TODO
+#define START_READ() locks[hash]->Acquire()
+#define END_READ() locks[hash]->Release()
+#define START_WRITE() locks[hash]->Acquire()
+#define END_WRITE() locks[hash]->Release()
 #elif defined P1_RWLOCK //using our rwlock. Your solution for Task 3
-#define START_READ() do{}while(0) //TODO
-#define END_READ() do{}while(0) //TODO
-#define START_WRITE() do{}while(0) //TODO
-#define END_WRITE() do{}while(0) //TODO
+#define START_READ() rwlocks[hash]->startRead()
+#define END_READ() rwlocks[hash]->doneRead()
+#define START_WRITE() rwlocks[hash]->startWrite()
+#define END_WRITE() rwlocks[hash]->doneWrite()
 #else //else behave like NOLOCK (no option passed)
 #define START_READ() do{}while(0)
 #define END_READ() do{}while(0)
@@ -102,8 +102,21 @@ HashMap::HashMap() {
   }
   //insert setup code here
 #elif defined P1_LOCK
+  for(int i = 0; i < TABLE_SIZE; i++) {
+    locks[i] = new Lock((char *)"hash_bucket_lock");
+
+    // allocate one lock per bucket, locks start FREE and enforce mutual exclusion
+  }
+
   //insert setup code here
 #elif defined P1_RWLOCK
+  for(int i = 0; i < TABLE_SIZE; i++) {
+    rwlocks[i] = new RWLock((char *)"hash_bucket_rwlock");
+
+    // allocate one rwlock per bucket
+    // allows concurrent reads and exclusive writes
+  }
+
   //insert setup code here
 #endif
 }
@@ -208,6 +221,16 @@ HashMap::remove(int key) {
   END_WRITE();
 }
 
+
+void
+HashMap::increment(int key, int value) { 
+  int hash = (key % TABLE_SIZE); 
+  START_WRITE();
+  _put(key,_get(key)+value);
+  END_WRITE();
+}
+
+
 HashMap:: ~HashMap() {
   for (int hash = 0; hash < TABLE_SIZE; hash++){
     if (table[hash] != NULL) {
@@ -221,13 +244,23 @@ HashMap:: ~HashMap() {
     }
   }
   delete[] table;
-}
 
-
-void
-HashMap::increment(int key, int value) { 
-  int hash = (key % TABLE_SIZE); 
-  START_WRITE();
-  _put(key,_get(key)+value);
-  END_WRITE();
+#ifdef P1_SEMAPHORE
+  // clean up semaphores
+  for(int i = 0; i < TABLE_SIZE; i++) {
+    delete sem[i];
+  }
+#endif
+#ifdef P1_LOCK
+  // clean up locks
+  for(int i = 0; i < TABLE_SIZE; i++) {
+    delete locks[i];
+  }
+#endif
+#ifdef P1_RWLOCK
+  // clean up rwlocks
+  for(int i = 0; i < TABLE_SIZE; i++) {
+    delete rwlocks[i];
+  }
+#endif
 }

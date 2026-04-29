@@ -97,12 +97,15 @@ Semaphore::V()
     (void) interrupt->SetLevel(oldLevel);
 }
 
-// Dummy functions -- so we can compile our later assignments
-// Note -- without a correct implementation of Condition::Wait(),
-// the test case in the network assignment won't work!
-//
 // Your solution for Task 2
 // TODO
+
+//----------------------------------------------------------------------
+// Lock::Lock
+// 	Initialize a lock to be used for mutual exclusion. The lock is initially free.
+// debugName is an arbitrary name that is used for debugging.
+// value=1 means the lock in FREE, value=0 means the lock is BUSY.
+//----------------------------------------------------------------------
 
 Lock::Lock(char* debugName) {
     name = debugName;
@@ -111,9 +114,21 @@ Lock::Lock(char* debugName) {
     queue = new List;
 }
 
+//----------------------------------------------------------------------
+// to deallocate lock when it is not needed anymore
+//----------------------------------------------------------------------
+
 Lock::~Lock() { 
     delete queue;
 }
+
+//----------------------------------------------------------------------
+// Lock::Acquire
+// wait until the lock is available, and then set to BUSY
+// Record the current thread as the lock owner.
+// Interrupts are disabled during checking the lock status.
+// The current thread is added to the wait queue and put to sleep if the lock is BUSY.
+//----------------------------------------------------------------------
 
 void Lock::Acquire() { 
     IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
@@ -128,6 +143,12 @@ void Lock::Acquire() {
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }
+
+//----------------------------------------------------------------------
+// Lock::Release
+// Releases the lock. The thread that acquired the lock is the one that releases it.
+// Release sets the lock to FREE and wakes up a waiter from the waiting queue.
+//----------------------------------------------------------------------
 
 void Lock::Release() { 
     Thread *thread;
@@ -144,6 +165,11 @@ void Lock::Release() {
     (void) interrupt->SetLevel(oldLevel);
 }
 
+//----------------------------------------------------------------------
+// Lock::isHeldByCurrentThread
+// Returns true if current thread holds the lock.
+//----------------------------------------------------------------------
+
 bool Lock::isHeldByCurrentThread() { 
     return owner == currentThread;
 }
@@ -151,8 +177,76 @@ bool Lock::isHeldByCurrentThread() {
 // Your solution for Task 3
 // TODO
 
-Condition::Condition(char* debugName) { }
-Condition::~Condition() { }
-void Condition::Wait(Lock* conditionLock) { }
-void Condition::Signal(Lock* conditionLock) { }
-void Condition::Broadcast(Lock* conditionLock) { }
+//----------------------------------------------------------------------
+// Condition::Condition
+// Initialize a condition variable, which has no value.
+// Condition variable maintains queue of waiting threads.
+//----------------------------------------------------------------------
+
+Condition::Condition(char* debugName) { 
+    name = debugName;
+    queue = new List;  // this is the queue of threads that are waiting on this condition
+}
+
+//----------------------------------------------------------------------
+// Condition::~Condition
+// deallocates the condition variable when it is no longer needed.
+//----------------------------------------------------------------------
+
+Condition::~Condition() {
+    delete queue;
+}
+
+//----------------------------------------------------------------------
+// Condition::Wait
+// Releases the lock and adds current thread to the waiting queue.
+// Goes to sleep while waiting on condition. Acquire the lock again when woken.
+//----------------------------------------------------------------------
+
+void Condition::Wait(Lock* conditionLock) { 
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    ASSERT(conditionLock->isHeldByCurrentThread());
+    conditionLock->Release();  // release the lock
+    queue->Append((void *)currentThread);
+    currentThread->Sleep();
+
+    (void) interrupt->SetLevel(oldLevel);
+    conditionLock->Acquire();
+}
+
+//----------------------------------------------------------------------
+// Condition::Signal
+// Wakes up one thread that is waiting on this condition.
+//----------------------------------------------------------------------
+
+void Condition::Signal(Lock* conditionLock) { 
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+    // caller must hold the lock
+    ASSERT(conditionLock->isHeldByCurrentThread());
+
+    Thread *thread = (Thread *)queue->Remove();
+    if(thread != NULL) {
+        scheduler->ReadyToRun(thread);
+    }
+
+    (void) interrupt->SetLevel(oldLevel);  // re-enable interrupt
+}
+
+//----------------------------------------------------------------------
+// Condition::Broadcast
+// Wakes up all threads that are waiting on this condition variable.
+//----------------------------------------------------------------------
+
+void Condition::Broadcast(Lock* conditionLock) { 
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+    ASSERT(conditionLock->isHeldByCurrentThread());
+
+    Thread *thread;
+    while((thread = (Thread *)queue->Remove()) != NULL) {
+        scheduler->ReadyToRun(thread);
+    }
+
+    (void) interrupt->SetLevel(oldLevel);  //re-enable interrupt
+}

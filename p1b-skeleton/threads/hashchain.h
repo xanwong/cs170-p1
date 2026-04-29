@@ -4,9 +4,16 @@
  *
  **/
 
+#ifndef HASHCHAIN_H
+#define HASHCHAIN_H
+
 #include "synch.h"
+
+#ifdef P1_RWLOCK
 #include "rwlock.h"
-#define HTABLE_SIZE 128
+#endif
+
+#define TABLE_SIZE 128
 class LinkedHashEntry {
 private:
       int key;
@@ -26,12 +33,16 @@ public:
 class HashMap {
 private:
       LinkedHashEntry **table;
+
+      int _get(int key);
+      void _put(int key, int value);
+
 #ifdef P1_SEMAPHORE
-      Semaphore  *sem[HTABLE_SIZE];
+      Semaphore  *sem[TABLE_SIZE];
 #elif defined P1_LOCK
-      Lock  *lck[HTABLE_SIZE];
+      Lock  *locks[TABLE_SIZE];
 #elif  defined P1_RWLOCK
-      RWLock *rwlck[HTABLE_SIZE];	
+      RWLock *rwlocks[TABLE_SIZE];	
 #endif
       void _put(int key, int value);
       int _get(int key);
@@ -46,3 +57,4 @@ public:
 };
 
 
+#endif // HASHCHAIN_H
