@@ -204,13 +204,18 @@ Condition::~Condition() {
 //----------------------------------------------------------------------
 
 void Condition::Wait(Lock* conditionLock) { 
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
     ASSERT(conditionLock->isHeldByCurrentThread());
-    conditionLock->Release();  // release the lock
+
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
     queue->Append((void *)currentThread);
+    
+    conditionLock->Release();  // release the lock
+    
     currentThread->Sleep();
 
     (void) interrupt->SetLevel(oldLevel);
+
     conditionLock->Acquire();
 }
 
@@ -220,10 +225,10 @@ void Condition::Wait(Lock* conditionLock) {
 //----------------------------------------------------------------------
 
 void Condition::Signal(Lock* conditionLock) { 
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
-
     // caller must hold the lock
     ASSERT(conditionLock->isHeldByCurrentThread());
+
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
     Thread *thread = (Thread *)queue->Remove();
     if(thread != NULL) {
@@ -239,9 +244,9 @@ void Condition::Signal(Lock* conditionLock) {
 //----------------------------------------------------------------------
 
 void Condition::Broadcast(Lock* conditionLock) { 
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
-
     ASSERT(conditionLock->isHeldByCurrentThread());
+
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
     Thread *thread;
     while((thread = (Thread *)queue->Remove()) != NULL) {
