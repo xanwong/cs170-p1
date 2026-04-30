@@ -38,25 +38,25 @@
 #define START_WRITE() do{}while(0)
 #define END_WRITE() do{}while(0)
 #elif defined P1_SEMAPHORE //using nachos semaphore. Your solution for Task 1
-#define START_READ() sem[hash]->P()
-#define END_READ() sem[hash]->V()
-#define START_WRITE() sem[hash]->P()
-#define END_WRITE() sem[hash]->V()
+#define START_READ(hash) sem[hash]->P()
+#define END_READ(hash) sem[hash]->V()
+#define START_WRITE(hash) sem[hash]->P()
+#define END_WRITE(hash) sem[hash]->V()
 #elif defined P1_LOCK //using our implemented nachos lock. Your solution for Task 2
-#define START_READ() locks[hash]->Acquire()
-#define END_READ() locks[hash]->Release()
-#define START_WRITE() locks[hash]->Acquire()
-#define END_WRITE() locks[hash]->Release()
+#define START_READ(hash) lck[hash]->Acquire()
+#define END_READ(hash) lck[hash]->Release()
+#define START_WRITE(hash) lck[hash]->Acquire()
+#define END_WRITE(hash) lck[hash]->Release()
 #elif defined P1_RWLOCK //using our rwlock. Your solution for Task 3
-#define START_READ() rwlocks[hash]->startRead()
-#define END_READ() rwlocks[hash]->doneRead()
-#define START_WRITE() rwlocks[hash]->startWrite()
-#define END_WRITE() rwlocks[hash]->doneWrite()
+#define START_READ(hash) rwlck[hash]->startRead()
+#define END_READ(hash) rwlck[hash]->doneRead()
+#define START_WRITE(hash) rwlck[hash]->startWrite()
+#define END_WRITE(hash) rwlck[hash]->doneWrite()
 #else //else behave like NOLOCK (no option passed)
-#define START_READ() do{}while(0)
-#define END_READ() do{}while(0)
-#define START_WRITE() do{}while(0)
-#define END_WRITE() do{}while(0)
+#define START_READ(hash) do{}while(0)
+#define END_READ(hash) do{}while(0)
+#define START_WRITE(hash) do{}while(0)
+#define END_WRITE(hash) do{}while(0)
 #endif
 
 LinkedHashEntry:: LinkedHashEntry(int key1, int value1) {
@@ -103,7 +103,7 @@ HashMap::HashMap() {
   //insert setup code here
 #elif defined P1_LOCK
   for(int i = 0; i < TABLE_SIZE; i++) {
-    locks[i] = new Lock((char *)"hash_bucket_lock");
+    lck[i] = new Lock((char *)"hash_bucket_lock");
 
     // allocate one lock per bucket, locks start FREE and enforce mutual exclusion
   }
@@ -111,7 +111,7 @@ HashMap::HashMap() {
   //insert setup code here
 #elif defined P1_RWLOCK
   for(int i = 0; i < TABLE_SIZE; i++) {
-    rwlocks[i] = new RWLock((char *)"hash_bucket_rwlock");
+    rwlck[i] = new RWLock((char *)"hash_bucket_rwlock");
 
     // allocate one rwlock per bucket
     // allows concurrent reads and exclusive writes
@@ -172,26 +172,26 @@ HashMap::_put(int key, int value) { //internal put() function. DO NOT MODIFY
 int 
 HashMap::get(int key1) { 
   int hash = (key1 % TABLE_SIZE); 
-  START_READ();
+  START_READ(hash);
   //usleep(10);
   int ret= _get(key1);;
-  END_READ();
+  END_READ(hash);
   return ret;
 }
 
 void 
 HashMap::put(int key1, int value1) { 
   int hash = (key1 % TABLE_SIZE); 
-  START_WRITE();
+  START_WRITE(hash);
   _put(key1,value1);
-  END_WRITE();
+  END_WRITE(hash);
 }
 
 
 void
 HashMap::remove(int key) { 
   int hash = (key % TABLE_SIZE);
-  START_WRITE();
+  START_WRITE(hash);
   if (table[hash] != NULL) {
     YIELD();
     LinkedHashEntry *prevEntry = NULL;
@@ -218,16 +218,16 @@ HashMap::remove(int key) {
       }
     }
   }
-  END_WRITE();
+  END_WRITE(hash);
 }
 
 
 void
 HashMap::increment(int key, int value) { 
   int hash = (key % TABLE_SIZE); 
-  START_WRITE();
+  START_WRITE(hash);
   _put(key,_get(key)+value);
-  END_WRITE();
+  END_WRITE(hash);
 }
 
 

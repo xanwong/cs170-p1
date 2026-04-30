@@ -153,11 +153,12 @@ void Lock::Acquire() {
 void Lock::Release() { 
     Thread *thread;
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    
+    ASSERT(isHeldByCurrentThread());        // Only the thread that holds the lock can release it
 
     value = 1; 					// Lock is now FREE
     owner = NULL;
 
-    ASSERT(isHeldByCurrentThread());        // Only the thread that holds the lock can release it
     thread = (Thread *)queue->Remove();
     if (thread != NULL)	   
         scheduler->ReadyToRun(thread);  // Run next thread waiting for this lock
